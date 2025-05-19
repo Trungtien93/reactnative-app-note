@@ -18,7 +18,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getDatabase, ref, onValue, push, set, update, remove } from 'firebase/database';
 import { app, auth } from '../firebaseConfig'; // import auth
 
-const USER_NAME = 'HUYỀN TRINH';
 
 type RootStackParamList = {
   Home: undefined;

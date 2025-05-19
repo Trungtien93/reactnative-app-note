@@ -5,33 +5,27 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
-import HomeScreen from '../screens/HomeScreen';
-import { useTheme } from '../context/ThemeContext';
+import TaskListScreen from '../screens/TaskListScreen'; // Đổi tên HomeScreen thành TaskListScreen nếu cần
+import TaskEditScreen from '../screens/TaskEditScreen';
+import TaskDetailScreen from '../screens/TaskDetailScreen';
 import { AuthContext } from '../context/AuthContext';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import SettingScreen from '../screens/SettingScreen'; // Thêm dòng này
-import AddServiceScreen from '../screens/AddServiceScreen';
-import ServiceDetailScreen from '../screens/ServiceDetailScreen';
-import EditServiceScreen from '../screens/EditServiceScreen';
+import SettingScreen from '../screens/SettingScreen';
 import TransactionScreen from '../screens/TransactionScreen';
 import CustomerScreen from '../screens/CustomerScreen';
-
-
-// ...giữ nguyên các phần khác...
-
-// ...imports giữ nguyên...
+import CalendarScreen from '../screens/CalendarScreen';
+import StatsScreen from '../screens/StatsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Stack cho tab Home
-function HomeStackNavigator() {
+// Stack cho tab Tasks
+function TaskStackNavigator() {
   return (
     <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="HomeMain" component={HomeScreen} />
-      <Stack.Screen name="AddService" component={AddServiceScreen} />
-      <Stack.Screen name="ServiceDetail" component={ServiceDetailScreen} />
-      <Stack.Screen name="EditService" component={EditServiceScreen} />
+      <Stack.Screen name="TaskList" component={TaskListScreen} />
+      <Stack.Screen name="TaskEdit" component={TaskEditScreen} />
+      <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -46,17 +40,23 @@ function MainTabNavigator() {
         tabBarInactiveTintColor: '#888',
         tabBarStyle: { backgroundColor: '#fff', height: 60, paddingBottom: 6 },
         tabBarIcon: ({ color, size }) => {
-          if (route.name === 'Home') return <Ionicons name="home" size={size} color={color} />;
+          if (route.name === 'Tasks') return <Ionicons name="list" size={size} color={color} />;
           if (route.name === 'Transaction') return <MaterialIcons name="receipt-long" size={size} color={color} />;
           if (route.name === 'Customer') return <Ionicons name="people-outline" size={size} color={color} />;
           if (route.name === 'Setting') return <Ionicons name="settings-outline" size={size} color={color} />;
+          if (route.name === 'Calendar') return <Ionicons name="calendar-outline" size={size} color={color} />;
+          if (route.name === 'Stats') return <Ionicons name="bar-chart" size={size} color={color} />;
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeStackNavigator} options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Transaction" component={TransactionScreen} options={{ tabBarLabel: 'Transaction' }} />
-      <Tab.Screen name="Customer" component={CustomerScreen} options={{ tabBarLabel: 'Customer' }} />
-      <Tab.Screen name="Setting" component={SettingScreen} options={{ tabBarLabel: 'Setting' }} />
+      <Tab.Screen name="Tasks" component={TaskStackNavigator} options={{ tabBarLabel: 'Công việc' }} />
+      {/* <Tab.Screen name="Transaction" component={TransactionScreen} options={{ tabBarLabel: 'Giao dịch' }} />
+      <Tab.Screen name="Customer" component={CustomerScreen} options={{ tabBarLabel: 'Khách hàng' }} /> */}
+     
+      <Tab.Screen name="Calendar" component={CalendarScreen} options={{ tabBarLabel: 'Lịch' }} />
+      <Tab.Screen name="Stats" component={StatsScreen} options={{ tabBarLabel: 'Thống kê' }} />
+      <Tab.Screen name="Setting" component={SettingScreen} options={{ tabBarLabel: 'Cài đặt' }} />
+
     </Tab.Navigator>
   );
 }

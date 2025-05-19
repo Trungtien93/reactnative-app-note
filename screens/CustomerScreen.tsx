@@ -99,6 +99,8 @@ const CustomerScreen = () => {
     </View>
   </View>
 );
+    // Render danh sách khách hàng
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Danh sách khách hàng</Text>
