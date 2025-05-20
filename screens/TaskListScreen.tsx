@@ -36,10 +36,18 @@ const TaskListScreen = ({ navigation }) => {
       t.title?.toLowerCase().includes(search.toLowerCase()) ||
       t.description?.toLowerCase().includes(search.toLowerCase());
     const matchTag = selectedTag === 'Tất cả' || t.tag === selectedTag;
+    
+    // Kiểm tra quá hạn
+    const now = new Date();
+    const deadline = t.deadline ? new Date(t.deadline) : null;
+    const isOverdue = deadline && deadline < now && !t.completed && t.status !== 'completed';
+    
     const matchStatus =
       selectedStatus === 'Tất cả' ||
-      (selectedStatus === 'Đã xong' && t.completed) ||
-      (selectedStatus === 'Đang làm' && !t.completed);
+      (selectedStatus === 'Đã xong' && (t.completed || t.status === 'completed')) ||
+      (selectedStatus === 'Đang làm' && !t.completed && t.status !== 'completed' && !isOverdue) ||
+      (selectedStatus === 'Quá hạn' && isOverdue);
+    
     return matchSearch && matchTag && matchStatus;
   });
 

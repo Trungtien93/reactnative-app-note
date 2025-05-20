@@ -21,6 +21,8 @@ const formatDateTime = (isoString) => {
 
 const getStatusText = (item) => {
   if (item.completed) return '✅ Đã xong';
+  if (item.status === 'completed') return '✅ Đã xong';
+  
   const now = new Date();
   const deadline = item.deadline ? new Date(item.deadline) : null;
   if (deadline && deadline < now) return '⚠️ Quá hạn';
@@ -29,6 +31,8 @@ const getStatusText = (item) => {
 
 const getStatusColor = (item) => {
   if (item.completed) return '#43A047';
+  if (item.status === 'completed') return '#43A047';
+  
   const now = new Date();
   const deadline = item.deadline ? new Date(item.deadline) : null;
   if (deadline && deadline < now) return '#E84C6C';

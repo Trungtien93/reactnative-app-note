@@ -53,6 +53,7 @@ const TaskEditScreen = ({ route, navigation }) => {
         deadline: deadline.toISOString(),
         tag,
         completed,
+        status: completed ? 'completed' : 'in_progress',
         updatedAt: new Date().toISOString(),
       });
 
@@ -76,6 +77,7 @@ const TaskEditScreen = ({ route, navigation }) => {
         deadline: deadline.toISOString(),
         tag,
         completed: false,
+        status: 'in_progress',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

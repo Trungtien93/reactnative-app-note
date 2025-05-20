@@ -44,7 +44,7 @@ const StatsScreen = () => {
         const deadline = formatDate(new Date(task.deadline));
         if (deadline >= formatDate(fromDate) && deadline <= formatDate(toDate)) {
           t++;
-          if (task.completed) d++;
+          if (task.completed || task.status === 'completed') d++;
           else if (deadline < today) l++;
           else doin++;
         }

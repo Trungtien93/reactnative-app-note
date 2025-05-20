@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
+import { AuthContext } from '../context/AuthContext';
 
 LocaleConfig.locales['vi'] = {
   monthNames: ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'],
@@ -23,18 +24,22 @@ type Task = {
 };
 
 const CalendarScreen = () => {
+  const { user } = useContext(AuthContext);
   const [markedDates, setMarkedDates] = useState({});
   const [tasks, setTasks] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
 
   useEffect(() => {
+    if (!user) return;
+
     const db = getDatabase(app);
-    const tasksRef = ref(db, 'tasks');
+    const tasksRef = ref(db, `tasks/${user.uid}`);
     const unsubscribe = onValue(tasksRef, (snapshot) => {
       const data = snapshot.val() || {};
       const marks = {};
       const taskList = [];
-      Object.values(data).forEach((taskObj) => {
+      
+      Object.entries(data).forEach(([taskId, taskObj]) => {
         const task = taskObj as Task;
         if (task.deadline) {
           const date = task.deadline.slice(0, 10);
@@ -43,18 +48,26 @@ const CalendarScreen = () => {
             dotColor: task.completed ? '#43A047' : '#E84C6C',
             activeOpacity: 0,
           };
-          taskList.push({ ...task, deadline: date });
+          taskList.push({ ...task, id: taskId, deadline: date });
         }
       });
       setMarkedDates(marks);
       setTasks(taskList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const tasksForSelectedDate = tasks.filter(
     (task) => selectedDate && task.deadline === selectedDate
   );
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.header}>Vui lòng đăng nhập để xem lịch công việc</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -103,8 +116,8 @@ const CalendarScreen = () => {
           {tasksForSelectedDate.length === 0 ? (
             <Text style={styles.noTaskText}>Không có công việc nào.</Text>
           ) : (
-            tasksForSelectedDate.map((item, index) => (
-              <View key={index.toString()} style={styles.taskBox}>
+            tasksForSelectedDate.map((item) => (
+              <View key={item.id} style={styles.taskBox}>
                 <Text style={styles.taskTitle}>{item.title}</Text>
                 <Text style={styles.taskMeta}>⏰ Hạn: {item.deadline}</Text>
                 {item.tag && <Text style={styles.taskMeta}>🏷️ Tag: {item.tag}</Text>}

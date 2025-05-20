@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 
-const STATUS = ['Tất cả', 'Đã xong', 'Đang làm'];
+const STATUS = ['Tất cả', 'Đã xong', 'Đang làm', 'Quá hạn'];
 
 const StatusFilter = ({ selectedStatus, onSelectStatus }) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
