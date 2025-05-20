@@ -14,19 +14,28 @@ const SettingScreen = ({ navigation }) => {
 
   // Thêm useEffect để load dữ liệu user nếu đã có
   useEffect(() => {
-    const db = getDatabase();
-    const userRef = ref(db, `user/${uid}`);
-    const unsubscribe = onValue(userRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setName(data.name || '');
-        setPhone(data.phone || '');
-        setAddress(data.address || '');
-        setEditMode(false); // Nếu đã có dữ liệu thì chỉ xem
-      }
-    });
-    return () => unsubscribe();
-  }, [uid]);
+  const db = getDatabase();
+  const userRef = ref(db, `user/${uid}`);
+  const unsubscribe = onValue(userRef, (snapshot) => {
+    const data = snapshot.val();
+
+    if (data) {
+      // Nếu có dữ liệu trên database, lấy theo đó
+      setName(data.name || email.split('@')[0]);
+      setPhone(data.phone || '0123456789');
+      setAddress(data.address || '');
+      setEditMode(false); // Chỉ xem khi đã có dữ liệu
+    } else {
+      // Nếu chưa có dữ liệu user trong db, set mặc định
+      setName(email.split('@')[0]);
+      setPhone('0123456789');
+      setAddress('');
+      setEditMode(true);  // Mở chế độ edit cho nhập liệu lần đầu
+    }
+  });
+  return () => unsubscribe();
+}, [uid, email]);
+
 
   const handleLogout = async () => {
     try {

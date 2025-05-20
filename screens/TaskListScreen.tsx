@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
@@ -6,6 +6,7 @@ import TaskItem from '../components/TaskItem';
 import TagPicker from '../components/TagPicker';
 import StatusFilter from '../components/StatusFilter';
 import { suggestPriorityTasks } from '../utils/aiSuggest';
+import { AuthContext } from '../context/AuthContext';
 
 const TaskListScreen = ({ navigation }) => {
   const [tasks, setTasks] = useState([]);
@@ -13,42 +14,41 @@ const TaskListScreen = ({ navigation }) => {
   const [selectedTag, setSelectedTag] = useState('Tất cả');
   const [selectedStatus, setSelectedStatus] = useState('Tất cả');
 
+  const { user } = useContext(AuthContext);
+
   useEffect(() => {
+    if (!user) return;
+
     const db = getDatabase(app);
-    const tasksRef = ref(db, 'tasks');
+    const tasksRef = ref(db, `tasks/${user.uid}`);
+
     const unsubscribe = onValue(tasksRef, (snapshot) => {
       const data = snapshot.val() || {};
       const list = Object.keys(data).map(id => ({ id, ...data[id] }));
       setTasks(list);
     });
-    return () => unsubscribe();
-  }, []);
 
-  // Lọc công việc theo từ khóa, tag và trạng thái
+    return () => unsubscribe();
+  }, [user]);
+
   const filteredTasks = tasks.filter(t => {
     const matchSearch =
       t.title?.toLowerCase().includes(search.toLowerCase()) ||
       t.description?.toLowerCase().includes(search.toLowerCase());
-
     const matchTag = selectedTag === 'Tất cả' || t.tag === selectedTag;
-
     const matchStatus =
       selectedStatus === 'Tất cả' ||
       (selectedStatus === 'Đã xong' && t.completed) ||
       (selectedStatus === 'Đang làm' && !t.completed);
-
     return matchSearch && matchTag && matchStatus;
   });
 
-  const priorityTasks = suggestPriorityTasks(tasks).slice(0, 3); // Lấy 3 việc ưu tiên nhất
+  const priorityTasks = suggestPriorityTasks(tasks).slice(0, 3);
 
-  // ✅ Hàm định dạng ngày giờ từ ISO
   const formatDateTime = (isoString) => {
     if (!isoString) return '';
     const d = new Date(isoString);
-    const date = d.toLocaleDateString('vi-VN');
-    const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    return `${date} lúc ${time}`;
+    return `${d.toLocaleDateString('vi-VN')} lúc ${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
   return (
@@ -61,12 +61,16 @@ const TaskListScreen = ({ navigation }) => {
         onChangeText={setSearch}
       />
 
-      {/* Gợi ý công việc ưu tiên */}
       {priorityTasks.length > 0 && (
         <View style={{ marginHorizontal: 16, marginBottom: 8 }}>
-          <Text style={{ fontWeight: 'bold', color: '#E84C6C', marginBottom: 4 }}>Cần hoàn thành trước:</Text>
+          <Text style={{ fontWeight: 'bold', color: '#E84C6C', marginBottom: 4 }}>
+            Cần hoàn thành trước:
+          </Text>
           {priorityTasks.map(task => (
-            <View key={task.id} style={{ backgroundColor: '#FFF3E0', borderRadius: 8, padding: 8, marginBottom: 4 }}>
+            <View
+              key={task.id}
+              style={{ backgroundColor: '#FFF3E0', borderRadius: 8, padding: 8, marginBottom: 4 }}
+            >
               <Text style={{ fontWeight: 'bold', color: '#FB8C00' }}>{task.title}</Text>
               <Text style={{ color: '#555', fontSize: 13 }}>
                 Hạn: {formatDateTime(task.deadline)}
@@ -76,7 +80,6 @@ const TaskListScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* Bộ lọc trạng thái và tag */}
       <View style={{ marginBottom: 4, marginLeft: 12 }}>
         <StatusFilter selectedStatus={selectedStatus} onSelectStatus={setSelectedStatus} />
         <TagPicker selectedTag={selectedTag} onSelectTag={setSelectedTag} />

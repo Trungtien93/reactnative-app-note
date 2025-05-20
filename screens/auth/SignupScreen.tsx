@@ -19,7 +19,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebaseConfig';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from '../../context/ThemeContext';
-
+import { getDatabase, ref, set } from 'firebase/database'; 
 
 type Props = NativeStackScreenProps<any>;
 
@@ -68,17 +68,26 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
       .required(t.required),
   });
 
-  const handleSignup = async (values: {
-    confirm: any; email: string; password: string 
-}) => {
+  const handleSignup = async (values: { confirm: any; email: string; password: string }) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+    const user = userCredential.user;
 
-    try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
-    } catch (error: any) {
-      setErrorState(error.message);
-    }
-  };
+    const uid = user.uid;
+    const email = user.email ?? '';
+    const defaultName = email.split('@')[0];
+    const db = getDatabase();
 
+    await set(ref(db, `user/${uid}`), {
+      email: email,
+      name: defaultName,
+      phone: '0123456789',
+      address: '',
+    });
+     } catch (error: any) {
+    setErrorState(error.message);
+  }
+};
   Animated.timing(fadeAnim, {
     toValue: 1,
     duration: 600,

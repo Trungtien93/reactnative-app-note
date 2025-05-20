@@ -37,7 +37,7 @@ export async function scheduleTaskNotification(task: Task): Promise<string | und
       content: {
         title: '📌 Nhắc nhở công việc',
         body: `Sắp đến hạn: ${task.title}`,
-        sound: 'default',
+        sound: 'thap.mp3',
       },
       trigger: {
         // Ép kiểu theo chuẩn DateTriggerInput của expo-notifications

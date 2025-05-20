@@ -1,7 +1,7 @@
 // firebaseConfig.ts
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth'; // ✅ Web SDK, không dùng /react-native
-import { getFirestore } from 'firebase/firestore';
+//import { getFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database'; // nếu bạn dùng Realtime Database
 
 // ✅ Cấu hình Firebase của bạn
@@ -19,7 +19,7 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // ✅ Khởi tạo dịch vụ Firebase
 const auth = getAuth(app);           // Firebase Auth
-const db = getFirestore(app);        // Firestore
-// const rtdb = getDatabase(app);    // Nếu bạn dùng Realtime Database
+//const db = getFirestore(app);        // Firestore
+ const db = getDatabase(app);    // Nếu bạn dùng Realtime Database
 
 export { app, auth, db };

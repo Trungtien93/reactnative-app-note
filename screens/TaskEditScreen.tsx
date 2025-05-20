@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   View,
   Text,
@@ -11,60 +11,43 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { getDatabase, ref, push, set, update } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import { scheduleTaskNotification, cancelTaskNotification } from '../utils/notification';
+import { AuthContext } from '../context/AuthContext';
 
 const TAGS = ['Cá nhân', 'Công việc', 'Học tập', 'Khác'];
 
-// Định nghĩa interface Task cho rõ ràng
-interface Task {
-  id?: string;
-  title: string;
-  description?: string;
-  deadline?: string; // ISO string
-  tag?: string;
-  completed?: boolean;
-  notificationId?: string; // id notification để có thể hủy
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface TaskEditScreenProps {
-  route: {
-    params?: {
-      task?: Task;
-    };
-  };
-  navigation: {
-    goBack: () => void;
-  };
-}
-
-const TaskEditScreen: React.FC<TaskEditScreenProps> = ({ route, navigation }) => {
+const TaskEditScreen = ({ route, navigation }) => {
   const editingTask = route?.params?.task;
+  const { user } = useContext(AuthContext);
 
-  const [title, setTitle] = useState<string>(editingTask?.title || '');
-  const [description, setDescription] = useState<string>(editingTask?.description || '');
-  const [deadline, setDeadline] = useState<Date>(
-    editingTask?.deadline ? new Date(editingTask.deadline) : new Date()
-  );
-  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-  const [tag, setTag] = useState<string>(editingTask?.tag || TAGS[0]);
-  const [completed, setCompleted] = useState<boolean>(editingTask?.completed || false);
+  const [title, setTitle] = useState(editingTask?.title || '');
+  const [description, setDescription] = useState(editingTask?.description || '');
+  const [deadline, setDeadline] = useState(editingTask?.deadline ? new Date(editingTask.deadline) : new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tag, setTag] = useState(editingTask?.tag || TAGS[0]);
+  const [completed, setCompleted] = useState(editingTask?.completed || false);
 
   const handleSave = async () => {
+    if (!user) {
+      Alert.alert('Lỗi', 'Bạn chưa đăng nhập!');
+      return;
+    }
     if (!title.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề công việc!');
       return;
     }
-    const db = getDatabase(app);
 
-    // Nếu đang chỉnh sửa thì hủy thông báo cũ (nếu có) rồi tạo lại
-    if (editingTask) {
+    const db = getDatabase(app);
+    const userTasksRef = ref(db, `tasks/${user.uid}`);
+
+    if (editingTask && editingTask.id) {
+      const taskRef = ref(db, `tasks/${user.uid}/${editingTask.id}`);
+
+      // Hủy thông báo cũ nếu có
       if (editingTask.notificationId) {
         await cancelTaskNotification(editingTask.notificationId);
       }
 
-      // Cập nhật task
-      await update(ref(db, `tasks/${editingTask.id}`), {
+      await update(taskRef, {
         title,
         description,
         deadline: deadline.toISOString(),
@@ -73,21 +56,21 @@ const TaskEditScreen: React.FC<TaskEditScreenProps> = ({ route, navigation }) =>
         updatedAt: new Date().toISOString(),
       });
 
-      // Đặt lại notification, lấy notificationId mới
+      // Lên lịch thông báo mới
       const notificationId = await scheduleTaskNotification({
-        id: editingTask.id!,
+        id: editingTask.id,
         title,
         deadline: deadline.toISOString(),
       });
 
-      // Cập nhật notificationId mới vào task
       if (notificationId) {
-        await update(ref(db, `tasks/${editingTask.id}`), { notificationId });
+        await update(taskRef, { notificationId });
       }
     } else {
-      // Thêm task mới
-      const newRef = push(ref(db, 'tasks'));
-      const newTask: Task = {
+      // Tạo task mới
+      const newRef = push(userTasksRef);
+      const newTask = {
+        id: newRef.key,  // Gán id cho task mới rất quan trọng
         title,
         description,
         deadline: deadline.toISOString(),
@@ -99,15 +82,15 @@ const TaskEditScreen: React.FC<TaskEditScreenProps> = ({ route, navigation }) =>
 
       await set(newRef, newTask);
 
-      // Đặt notification cho task mới
+      // Lên lịch thông báo
       const notificationId = await scheduleTaskNotification({
-        id: newRef.key!,
+        id: newRef.key,
         title,
         deadline: deadline.toISOString(),
       });
 
       if (notificationId) {
-        await update(ref(db, `tasks/${newRef.key}`), { notificationId });
+        await update(ref(db, `tasks/${user.uid}/${newRef.key}`), { notificationId });
       }
     }
 
@@ -135,10 +118,7 @@ const TaskEditScreen: React.FC<TaskEditScreenProps> = ({ route, navigation }) =>
         multiline
       />
 
-      <TouchableOpacity
-        onPress={() => setShowDatePicker(true)}
-        style={styles.input}
-      >
+      <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
         <Text style={{ color: '#333' }}>
           Hạn hoàn thành:{' '}
           {deadline
@@ -149,7 +129,7 @@ const TaskEditScreen: React.FC<TaskEditScreenProps> = ({ route, navigation }) =>
                 month: '2-digit',
                 year: 'numeric',
               })
-            : ''}
+            : 'Chọn ngày'}
         </Text>
       </TouchableOpacity>
 
@@ -157,90 +137,68 @@ const TaskEditScreen: React.FC<TaskEditScreenProps> = ({ route, navigation }) =>
         <DateTimePicker
           value={deadline}
           mode="datetime"
-          display="spinner"
-          onChange={(_, date) => {
+          display="default"
+          onChange={(event, date) => {
             setShowDatePicker(false);
             if (date) setDeadline(date);
           }}
-          minimumDate={new Date()}
         />
       )}
 
-      <View style={styles.tagRow}>
+      <View style={styles.tagContainer}>
         {TAGS.map(t => (
           <TouchableOpacity
             key={t}
-            style={[styles.tag, tag === t && styles.tagSelected]}
+            style={[styles.tag, tag === t && { backgroundColor: '#E84C6C' }]}
             onPress={() => setTag(t)}
           >
-            <Text style={{ color: tag === t ? '#fff' : '#E84C6C' }}>{t}</Text>
+            <Text style={[styles.tagText, tag === t && { color: 'white' }]}>{t}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {editingTask && (
-        <TouchableOpacity
-          style={[
-            styles.input,
-            {
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            },
-          ]}
-          onPress={() => setCompleted(!completed)}
-        >
-          <Text style={{ color: '#333' }}>Đã hoàn thành</Text>
-          <Text style={{ color: completed ? '#43A047' : '#aaa', fontWeight: 'bold' }}>
-            {completed ? '✔️' : '❌'}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Lưu</Text>
+      <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#E84C6C' }]} onPress={handleSave}>
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+          {editingTask ? 'Cập nhật' : 'Thêm mới'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16 },
-  header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#E84C6C',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
+  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 16, color: '#E84C6C', marginTop: 40 },
   input: {
     borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 14,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
     fontSize: 16,
     backgroundColor: '#fafafa',
   },
-  tagRow: { flexDirection: 'row', marginBottom: 16, flexWrap: 'wrap' },
+  tagContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 12,
+  },
   tag: {
-    borderWidth: 1,
-    borderColor: '#E84C6C',
-    borderRadius: 16,
     paddingVertical: 6,
-    paddingHorizontal: 16,
-    marginRight: 8,
-    marginBottom: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: '#eee',
   },
-  tagSelected: { backgroundColor: '#E84C6C', borderColor: '#E84C6C' },
+  tagText: {
+    fontSize: 14,
+    color: '#555',
+  },
   saveButton: {
-    backgroundColor: '#E84C6C',
+    marginTop: 20,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
-    marginTop: 8,
   },
-  saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
 
 export default TaskEditScreen;
