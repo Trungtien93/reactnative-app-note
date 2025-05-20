@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Platform,
 } from 'react-native';
@@ -6,6 +6,7 @@ import { PieChart } from 'react-native-chart-kit';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import { app } from '../firebaseConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { AuthContext } from '../context/AuthContext';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -14,6 +15,7 @@ function formatDate(date: Date) {
 }
 
 const StatsScreen = () => {
+  const { user } = useContext(AuthContext);
   const [done, setDone] = useState(0);
   const [doing, setDoing] = useState(0);
   const [late, setLate] = useState(0);
@@ -29,8 +31,10 @@ const StatsScreen = () => {
   const [showToPicker, setShowToPicker] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
+
     const db = getDatabase(app);
-    const tasksRef = ref(db, 'tasks');
+    const tasksRef = ref(db, `tasks/${user.uid}`);
     const unsubscribe = onValue(tasksRef, (snapshot) => {
       const data = snapshot.val() || {};
       let d = 0, doin = 0, l = 0, t = 0;
@@ -51,13 +55,21 @@ const StatsScreen = () => {
       setTotal(t);
     });
     return () => unsubscribe();
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, user]);
 
   const chartData = [
     { name: 'Đã xong', population: done, color: '#4CAF50', legendFontColor: '#333', legendFontSize: 14 },
     { name: 'Đang làm', population: doing, color: '#90A4AE', legendFontColor: '#333', legendFontSize: 14 },
     { name: 'Quá hạn', population: late, color: '#EF5350', legendFontColor: '#333', legendFontSize: 14 },
   ];
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.header}>Vui lòng đăng nhập để xem thống kê</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -135,7 +147,7 @@ const StatsScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9F9F9', padding: 20 },
-  header: { fontSize: 22, fontWeight: '600', color: '#222', textAlign: 'center', marginBottom: 20 , marginTop: 40 },
+  header: { fontSize: 22, fontWeight: '600', color: '#222', textAlign: 'center', marginBottom: 20, marginTop: 40 },
   dateRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   dateBtn: {
     paddingVertical: 8,
