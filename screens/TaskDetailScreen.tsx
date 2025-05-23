@@ -1,13 +1,13 @@
-import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { getDatabase, ref, update, remove, get } from 'firebase/database';
-import { app } from '../firebaseConfig';
+import React, { useContext, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTasks } from '../utils/useTasks';
 
 const TaskDetailScreen = ({ route, navigation }) => {
   const { task } = route.params || {};
   const { user } = useContext(AuthContext);
+  const { deleteTask, toggleTaskCompletion } = useTasks();
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!task) {
     return (
@@ -26,46 +26,45 @@ const TaskDetailScreen = ({ route, navigation }) => {
   };
 
   const handleToggleComplete = async () => {
-    if (!user || !user.uid) {
-      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+    if (!user) {
+      Alert.alert('Lỗi', 'Vui lòng đăng nhập để thực hiện chức năng này');
       return;
     }
 
-    const db = getDatabase(app);
+    if (!task.id) {
+      Alert.alert('Lỗi', 'Không tìm thấy ID công việc');
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      const newStatus = !task.completed;
+      const success = await toggleTaskCompletion(task.id, task.completed);
       
-      // Sử dụng user.uid thay vì task.idUser
-      const taskRef = ref(db, `tasks/${user.uid}/${task.id}`);
-      
-      // Kiểm tra task có tồn tại không
-      const snapshot = await get(taskRef);
-      if (!snapshot.exists()) {
-        Alert.alert('Lỗi', 'Không tìm thấy công việc');
-        return;
+      if (success) {
+        Alert.alert(
+          'Thành công', 
+          task.completed ? 'Đã đánh dấu chưa hoàn thành' : 'Đã đánh dấu hoàn thành'
+        );
+        navigation.goBack();
+      } else {
+        Alert.alert('Lỗi', 'Không thể cập nhật trạng thái công việc');
       }
-      
-      await update(taskRef, {
-        completed: newStatus,
-        status: newStatus ? 'completed' : 'in_progress',
-        updatedAt: new Date().toISOString(),
-      });
-      
-      Alert.alert(
-        'Thành công', 
-        newStatus ? 'Đã đánh dấu hoàn thành' : 'Đã đánh dấu chưa hoàn thành'
-      );
-      
-      navigation.goBack();
     } catch (error) {
       console.error('Lỗi cập nhật trạng thái:', error);
-      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái công việc.');
+      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái công việc');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = () => {
-    if (!user || !user.uid) {
-      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+    if (!user) {
+      Alert.alert('Lỗi', 'Vui lòng đăng nhập để thực hiện chức năng này');
+      return;
+    }
+
+    if (!task.id) {
+      Alert.alert('Lỗi', 'Không tìm thấy ID công việc');
       return;
     }
     
@@ -81,23 +80,21 @@ const TaskDetailScreen = ({ route, navigation }) => {
           text: 'Xóa',
           style: 'destructive',
           onPress: async () => {
+            setIsLoading(true);
             try {
-              const db = getDatabase(app);
-              const taskRef = ref(db, `tasks/${user.uid}/${task.id}`);
+              const success = await deleteTask(task.id);
               
-              // Kiểm tra xem task có tồn tại không
-              const snapshot = await get(taskRef);
-              if (!snapshot.exists()) {
-                Alert.alert('Lỗi', 'Không tìm thấy công việc cần xóa');
-                return;
+              if (success) {
+                Alert.alert('Thành công', 'Đã xóa công việc thành công');
+                navigation.goBack();
+              } else {
+                Alert.alert('Lỗi', 'Không thể xóa công việc');
               }
-
-              await remove(taskRef);
-              Alert.alert('Thành công', 'Đã xóa công việc thành công');
-              navigation.goBack();
             } catch (error) {
               console.error('Lỗi khi xóa task:', error);
               Alert.alert('Lỗi', 'Không thể xóa công việc. Vui lòng thử lại.');
+            } finally {
+              setIsLoading(false);
             }
           }
         }
@@ -126,8 +123,13 @@ const TaskDetailScreen = ({ route, navigation }) => {
 
         <View style={styles.row}>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: task.completed ? '#F57C00' : '#43A047' }]}
+            style={[
+              styles.button, 
+              { backgroundColor: task.completed ? '#F57C00' : '#43A047' },
+              isLoading && styles.disabledButton
+            ]}
             onPress={handleToggleComplete}
+            disabled={isLoading}
           >
             <Text style={styles.buttonText}>
               {task.completed ? 'Đánh dấu chưa xong' : 'Đánh dấu hoàn thành'}
@@ -137,13 +139,15 @@ const TaskDetailScreen = ({ route, navigation }) => {
           <TouchableOpacity
             style={[styles.button, { backgroundColor: '#E84C6C' }]}
             onPress={() => navigation.navigate('TaskEdit', { task })}
+            disabled={isLoading}
           >
             <Text style={styles.buttonText}>Sửa</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: '#ccc' }]}
+            style={[styles.button, { backgroundColor: '#ccc' }, isLoading && styles.disabledButton]}
             onPress={handleDelete}
+            disabled={isLoading}
           >
             <Text style={[styles.buttonText, { color: '#333' }]}>Xóa</Text>
           </TouchableOpacity>
@@ -173,6 +177,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 100,
     alignItems: 'center',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   buttonText: { color: 'white', fontWeight: 'bold' },
 });

@@ -1,35 +1,19 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
-import { getDatabase, ref, onValue } from 'firebase/database';
-import { app } from '../firebaseConfig';
 import TaskItem from '../components/TaskItem';
 import TagPicker from '../components/TagPicker';
 import StatusFilter from '../components/StatusFilter';
 import { suggestPriorityTasks } from '../utils/aiSuggest';
 import { AuthContext } from '../context/AuthContext';
+import { useTasks } from '../utils/useTasks';
 
 const TaskListScreen = ({ navigation }) => {
-  const [tasks, setTasks] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState('Tất cả');
   const [selectedStatus, setSelectedStatus] = useState('Tất cả');
 
   const { user } = useContext(AuthContext);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const db = getDatabase(app);
-    const tasksRef = ref(db, `tasks/${user.uid}`);
-
-    const unsubscribe = onValue(tasksRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      const list = Object.keys(data).map(id => ({ id, ...data[id] }));
-      setTasks(list);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+  const { tasks, loading } = useTasks();
 
   const filteredTasks = tasks.filter(t => {
     const matchSearch =
@@ -93,13 +77,31 @@ const TaskListScreen = ({ navigation }) => {
         <TagPicker selectedTag={selectedTag} onSelectTag={setSelectedTag} />
       </View>
 
-      <FlatList
-        data={filteredTasks}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <TaskItem item={item} onPress={() => navigation.navigate('TaskDetail', { task: item })} />
-        )}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text>Đang tải công việc...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredTasks}
+          keyExtractor={item => item.id || ''}
+          renderItem={({ item }) => (
+            <TaskItem 
+              item={item} 
+              onPress={() => navigation.navigate('TaskDetail', { task: item })} 
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {search || selectedTag !== 'Tất cả' || selectedStatus !== 'Tất cả' 
+                  ? 'Không tìm thấy công việc phù hợp' 
+                  : 'Chưa có công việc nào. Hãy thêm công việc mới!'}
+              </Text>
+            </View>
+          }
+        />
+      )}
 
       <TouchableOpacity
         style={styles.addButton}
@@ -114,6 +116,19 @@ const TaskListScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { fontSize: 22, fontWeight: 'bold', margin: 16, color: '#E84C6C', marginTop: 70 },
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#666',
+    textAlign: 'center',
+  },
   addButton: {
     position: 'absolute',
     right: 24,

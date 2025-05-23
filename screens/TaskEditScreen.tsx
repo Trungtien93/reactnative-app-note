@@ -6,18 +6,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getDatabase, ref, push, set, update } from 'firebase/database';
-import { app } from '../firebaseConfig';
 import { scheduleTaskNotification, cancelTaskNotification } from '../utils/notification';
 import { AuthContext } from '../context/AuthContext';
+import { useTasks, Task } from '../utils/useTasks';
 
 const TAGS = ['Cá nhân', 'Công việc', 'Học tập', 'Khác'];
 
 const TaskEditScreen = ({ route, navigation }) => {
   const editingTask = route?.params?.task;
   const { user } = useContext(AuthContext);
+  const { addTask, updateTask } = useTasks();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [title, setTitle] = useState(editingTask?.title || '');
   const [description, setDescription] = useState(editingTask?.description || '');
@@ -36,67 +38,61 @@ const TaskEditScreen = ({ route, navigation }) => {
       return;
     }
 
-    const db = getDatabase(app);
-    const userTasksRef = ref(db, `tasks/${user.uid}`);
-
-    if (editingTask && editingTask.id) {
-      const taskRef = ref(db, `tasks/${user.uid}/${editingTask.id}`);
-
-      // Hủy thông báo cũ nếu có
-      if (editingTask.notificationId) {
-        await cancelTaskNotification(editingTask.notificationId);
-      }
-
-      await update(taskRef, {
+    setIsSubmitting(true);
+    try {
+      const taskData: Partial<Task> = {
         title,
         description,
         deadline: deadline.toISOString(),
         tag,
         completed,
-        status: completed ? 'completed' : 'in_progress',
-        updatedAt: new Date().toISOString(),
-      });
-
-      // Lên lịch thông báo mới
-      const notificationId = await scheduleTaskNotification({
-        id: editingTask.id,
-        title,
-        deadline: deadline.toISOString(),
-      });
-
-      if (notificationId) {
-        await update(taskRef, { notificationId });
-      }
-    } else {
-      // Tạo task mới
-      const newRef = push(userTasksRef);
-      const newTask = {
-        id: newRef.key,  // Gán id cho task mới rất quan trọng
-        title,
-        description,
-        deadline: deadline.toISOString(),
-        tag,
-        completed: false,
-        status: 'in_progress',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
-      await set(newRef, newTask);
+      let taskId: string | null = null;
+      let notificationId: string | undefined;
 
-      // Lên lịch thông báo
-      const notificationId = await scheduleTaskNotification({
-        id: newRef.key,
-        title,
-        deadline: deadline.toISOString(),
-      });
+      if (editingTask && editingTask.id) {
+        // Hủy thông báo cũ nếu có
+        if (editingTask.notificationId) {
+          await cancelTaskNotification(editingTask.notificationId);
+        }
 
-      if (notificationId) {
-        await update(ref(db, `tasks/${user.uid}/${newRef.key}`), { notificationId });
+        // Cập nhật task
+        const success = await updateTask(editingTask.id, taskData);
+        if (!success) {
+          throw new Error('Không thể cập nhật công việc');
+        }
+        taskId = editingTask.id;
+      } else {
+        // Tạo task mới
+        taskId = await addTask(taskData as Task);
+        if (!taskId) {
+          throw new Error('Không thể tạo công việc mới');
+        }
       }
-    }
 
-    navigation.goBack();
+      // Lên lịch thông báo mới nếu có taskId
+      if (taskId) {
+        notificationId = await scheduleTaskNotification({
+          id: taskId,
+          title,
+          deadline: deadline.toISOString(),
+        });
+
+        // Cập nhật notificationId nếu có
+        if (notificationId) {
+          await updateTask(taskId, { notificationId });
+        }
+      }
+
+      Alert.alert('Thành công', editingTask ? 'Đã cập nhật công việc' : 'Đã thêm công việc mới');
+      navigation.goBack();
+    } catch (error) {
+      console.error('Lỗi khi lưu công việc:', error);
+      Alert.alert('Lỗi', 'Không thể lưu công việc. Vui lòng thử lại sau.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -159,10 +155,18 @@ const TaskEditScreen = ({ route, navigation }) => {
         ))}
       </View>
 
-      <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#E84C6C' }]} onPress={handleSave}>
-        <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-          {editingTask ? 'Cập nhật' : 'Thêm mới'}
-        </Text>
+      <TouchableOpacity 
+        style={[styles.saveButton, { backgroundColor: '#E84C6C' }]} 
+        onPress={handleSave}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator color="white" size="small" />
+        ) : (
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+            {editingTask ? 'Cập nhật' : 'Thêm mới'}
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );

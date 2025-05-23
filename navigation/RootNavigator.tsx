@@ -30,6 +30,17 @@ function TaskStackNavigator() {
   );
 }
 
+// Stack cho tab Calendar
+function CalendarStackNavigator() {
+  return (
+    <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="CalendarMain" component={CalendarScreen} />
+      <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
+      <Stack.Screen name="TaskEdit" component={TaskEditScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabNavigator() {
   return (
     <Tab.Navigator
@@ -53,7 +64,7 @@ function MainTabNavigator() {
       {/* <Tab.Screen name="Transaction" component={TransactionScreen} options={{ tabBarLabel: 'Giao dịch' }} />
       <Tab.Screen name="Customer" component={CustomerScreen} options={{ tabBarLabel: 'Khách hàng' }} /> */}
      
-      <Tab.Screen name="Calendar" component={CalendarScreen} options={{ tabBarLabel: 'Lịch' }} />
+      <Tab.Screen name="Calendar" component={CalendarStackNavigator} options={{ tabBarLabel: 'Lịch' }} />
       <Tab.Screen name="Stats" component={StatsScreen} options={{ tabBarLabel: 'Thống kê' }} />
       <Tab.Screen name="Setting" component={SettingScreen} options={{ tabBarLabel: 'Cài đặt' }} />
 
