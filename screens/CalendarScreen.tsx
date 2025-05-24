@@ -261,7 +261,7 @@ const CalendarScreen = ({ navigation }: any) => {
       <TouchableOpacity 
         style={[
           styles.customDayContainer,
-          marking?.customStyles?.container,
+          marking?.customStyles?.container && !isSelected && marking.customStyles.container,
           isSelected && styles.selectedDayContainer
         ]}
         onPress={() => setSelectedDate(date.dateString)}
@@ -269,6 +269,7 @@ const CalendarScreen = ({ navigation }: any) => {
       >
         <Text style={[
           styles.customDayText,
+          marking?.customStyles?.text && !isSelected && marking.customStyles.text,
           isSelected && styles.selectedDayText
         ]}>
           {date.day}
@@ -276,9 +277,12 @@ const CalendarScreen = ({ navigation }: any) => {
         {taskInfo && (
           <View style={[
             styles.taskCountBadge,
-            { backgroundColor: marking.dotColor }
+            { backgroundColor: isSelected ? '#fff' : marking.dotColor }
           ]}>
-            <Text style={styles.taskCountText}>
+            <Text style={[
+              styles.taskCountText,
+              { color: isSelected ? '#E84C6C' : '#fff' }
+            ]}>
               {taskInfo.completed}/{taskInfo.count}
             </Text>
           </View>
@@ -497,7 +501,8 @@ const CalendarScreen = ({ navigation }: any) => {
                 [selectedDate]: {
                   ...(markedDates[selectedDate] || {}),
                   selected: true,
-                  selectedColor: '#E84C6C',
+                  selectedColor: '#4A90E2',
+                  selectedTextColor: '#fff',
                 },
               }),
             }}
@@ -506,7 +511,7 @@ const CalendarScreen = ({ navigation }: any) => {
               backgroundColor: '#fff',
               calendarBackground: '#fff',
               textSectionTitleColor: '#222',
-              selectedDayBackgroundColor: '#E84C6C',
+              selectedDayBackgroundColor: '#4A90E2',
               selectedDayTextColor: '#fff',
               todayTextColor: '#E84C6C',
               dayTextColor: '#333',
@@ -706,10 +711,23 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 4,
   },
+  selectedDayContainer: {
+    backgroundColor: '#4A90E2',
+    borderRadius: 6,
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   customDayText: {
     fontSize: 16,
     color: '#333',
     fontWeight: '500',
+  },
+  selectedDayText: {
+    color: '#fff',
+    fontWeight: '700',
   },
   taskIndicator: {
     flexDirection: 'row',
@@ -968,12 +986,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     textAlign: 'center',
-  },
-  selectedDayContainer: {
-    backgroundColor: '#E84C6C !important',
-  },
-  selectedDayText: {
-    color: '#fff !important',
   },
   taskCountBadge: {
     position: 'absolute',
